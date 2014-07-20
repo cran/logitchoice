@@ -2,7 +2,7 @@
 \alias{coef.logitchoice}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-  Return main effect and interaction coefficients.
+  Return estimated coefficients from fitted logitchoice object.
 }
 \description{Returns the model coefficients for each lambda.
 }
@@ -41,7 +41,6 @@ interaction model.}
   Y[cumsum(groupSizes)] = 1
   grouping = rep(1:numGroups, groupSizes)
   fit = logitchoice(X, Y, grouping)
-  stopifnot(sum(fit$yhat) == numGroups*length(fit$lambda))
 max(abs(fit$betahat - coef(fit)))
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the

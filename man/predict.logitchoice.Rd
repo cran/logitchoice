@@ -47,7 +47,6 @@ Michael Lim\cr Maintainer: Michael Lim \email{michael626@gmail.com}
   Y[cumsum(groupSizes)] = 1
   grouping = rep(1:numGroups, groupSizes)
   fit = logitchoice(X, Y, grouping)
-  stopifnot(sum(fit$yhat) == numGroups*length(fit$lambda))
 max(abs(fit$yhat - predict(fit, X, grouping)))
 }
 
