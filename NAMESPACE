@@ -1,0 +1,5 @@
+useDynLib("logitchoice")
+export(logitchoice)
+
+S3method("predict", "logitchoice")
+S3method("coef", "logitchoice")

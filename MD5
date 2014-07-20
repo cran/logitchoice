@@ -1,0 +1,11 @@
+e997fc9c7973d09a6c79928ce336c453 *DESCRIPTION
+0ad331cca8fb63e01ed7378890ad939a *NAMESPACE
+910281951682ae02ff964fd57a5753e4 *R/coef.logitchoice.r
+1de2462f4f33114b7bc579b5c2f22367 *R/logitchoice.r
+d08160149f0cc88ca0fea491cbbc823c *R/predict.logitchoice.r
+3af894b913522a9b317a1ff0456c56aa *R/tests.r
+3b2e33232d32f3185d8dd405462794c3 *man/coef.logitchoice.Rd
+9e23ed199c6792021e7f74c28340eed4 *man/logitchoice.Rd
+f9041deddc9267d1ba217e851718689b *man/predict.logitchoice.Rd
+49eb14b63705236b4e5cb45c908a97c2 *src/Makevars
+5dc9bcb5c2999f8778fc03e2c0854aae *src/mle.c
