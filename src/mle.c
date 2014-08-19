@@ -162,13 +162,13 @@ void compute_update(const double *restrict beta, double *restrict betaUpdated, c
   }
 }
 
-void optimize_step(const double *restrict x, const int *restrict y, const double *restrict res, double *restrict probabilities, const int *restrict groupSizes, const int n, const int p, const int nGroups, const double *restrict beta, double *restrict betaUpdated, const double *restrict gradient, double stepsize, const double alpha, const double lambda){
-  int i;
+void optimize_step(const double *restrict x, const int *restrict y, const double *restrict res, double *restrict probabilities, const int *restrict groupSizes, const int n, const int p, const int nGroups, const double *restrict beta, double *restrict betaUpdated, const double *restrict gradient, double stepsize, const double alpha, const double lambda, const int maxIter){
+  int i, iter;
   double loglik, loglikUpdated;
   loglik = compute_loglik(y, probabilities, beta, lambda, n, p, nGroups);
   double *restrict delta = malloc(p * sizeof *delta);
   double gradientTimesDelta, deltaTimesDelta;
-  while (1){
+  while (iter < maxIter){
     gradientTimesDelta = 0.0;
     deltaTimesDelta = 0.0;
     compute_update(beta, betaUpdated, gradient, stepsize, p);
@@ -184,6 +184,7 @@ void optimize_step(const double *restrict x, const int *restrict y, const double
       break;
     }
     stepsize *= alpha;
+    ++iter;
   }
   free(delta);
 }
@@ -213,7 +214,7 @@ void solver(const double *restrict x, const int *restrict y, double *restrict re
     }
     memcpy(intermediateOld, intermediate, p * sizeof *intermediate);
     stepsize = iter > 0 ? compute_stepsize(gradient, gradientOld, beta, betaOld, p) : 1.0;
-    optimize_step(x, y, res, probabilities, groupSizes, n, p, nGroups, beta, intermediate, gradient, stepsize, *alpha, lambda);
+    optimize_step(x, y, res, probabilities, groupSizes, n, p, nGroups, beta, intermediate, gradient, stepsize, *alpha, lambda, maxIter);
     thetaOld = update_theta(beta, intermediate, intermediateOld, p, theta);
     theta = (1+sqrt(1+4*pow(thetaOld, 2))) / 2;
     momentum = (thetaOld-1) / theta;
