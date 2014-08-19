@@ -163,7 +163,7 @@ void compute_update(const double *restrict beta, double *restrict betaUpdated, c
 }
 
 void optimize_step(const double *restrict x, const int *restrict y, const double *restrict res, double *restrict probabilities, const int *restrict groupSizes, const int n, const int p, const int nGroups, const double *restrict beta, double *restrict betaUpdated, const double *restrict gradient, double stepsize, const double alpha, const double lambda, const int maxIter){
-  int i, iter;
+  int i, iter = 0;
   double loglik, loglikUpdated;
   loglik = compute_loglik(y, probabilities, beta, lambda, n, p, nGroups);
   double *restrict delta = malloc(p * sizeof *delta);
@@ -230,7 +230,8 @@ void solver(const double *restrict x, const int *restrict y, double *restrict re
       res[i] = y[i] - probabilities[i];
     }
     ++iter;
-    objValue[iter] = compute_loglik(y, probabilities, beta, lambda, n, p, nGroups);
+    if(iter < maxIter)
+        objValue[iter] = compute_loglik(y, probabilities, beta, lambda, n, p, nGroups);
   }
   *numIters = iter;
   free(betaOld);
