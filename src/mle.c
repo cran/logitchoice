@@ -55,10 +55,10 @@ SEXP R_compute_gradient(SEXP R_x, SEXP R_res, SEXP R_beta, SEXP R_lambda, SEXP R
   return R_result;
 }
 
-int check_convergence(const double *restrict gradient, const int len, const double tol) {
+int check_convergence(const double *restrict beta, const double *restrict betaOld, const int len, const double tol) {
   int i;
   for (i=0; i<len; i++) {
-    if (fabs(gradient[i]) > tol) {
+    if (fabs((beta[i] - betaOld[i]) / beta[i]) > tol) {
       return 0;
     }
   }
@@ -128,7 +128,7 @@ double compute_loglik(const int *restrict y, const double *restrict probabilitie
   double result = 0.0;
   double penalty = 0.0;
   for (i=0; i<n; i++) {
-    result += y[i] <= 0 ? 0.0 : log(fmax(EPS, probabilities[i]));
+    result += y[i] <= 0 ? 0.0 : log(probabilities[i]);
   }
   for (i=0; i<p; i++) {
     penalty += beta[i] * beta[i];
@@ -143,7 +143,7 @@ double compute_stepsize(const double *restrict gradient, const double *restrict 
     normBeta += (beta[i]-betaOld[i])*(beta[i]-betaOld[i]);
     normGradient += (gradient[i]-gradientOld[i])*(gradient[i]-gradientOld[i]);
   }
-  return sqrt(normBeta/normGradient);
+  return (normBeta > EPS && normGradient > EPS) ? sqrt(normBeta/normGradient) : 1.0;
 }
 
 double update_theta(const double *restrict beta, const double *restrict intermediate, const double *restrict intermediateOld, const int gradientLength, const double theta){
@@ -162,31 +162,29 @@ void compute_update(const double *restrict beta, double *restrict betaUpdated, c
   }
 }
 
-void optimize_step(const double *restrict x, const int *restrict y, const double *restrict res, double *restrict probabilities, const int *restrict groupSizes, const int n, const int p, const int nGroups, const double *restrict beta, double *restrict betaUpdated, const double *restrict gradient, double stepsize, const double alpha, const double lambda, const int maxIter){
+void optimize_step(const double *restrict x, const int *restrict y, const double *restrict res, double *restrict probabilities, const int *restrict groupSizes, const int n, const int p, const int nGroups, const double *restrict beta, double *restrict betaUpdated, const double *restrict gradient, double *restrict stepsize, const double alpha, const double lambda, const int maxIter){
   int i, iter = 0;
   double loglik, loglikUpdated;
   loglik = compute_loglik(y, probabilities, beta, lambda, n, p, nGroups);
-  double *restrict delta = malloc(p * sizeof *delta);
-  double gradientTimesDelta, deltaTimesDelta;
+  double delta, gradientTimesDelta, deltaTimesDelta;
   while (iter < maxIter){
     gradientTimesDelta = 0.0;
     deltaTimesDelta = 0.0;
-    compute_update(beta, betaUpdated, gradient, stepsize, p);
+    compute_update(beta, betaUpdated, gradient, *stepsize, p);
     for (i=0; i<p; i++){
-      delta[i] = betaUpdated[i] - beta[i];
-      gradientTimesDelta += gradient[i] * delta[i];
-      deltaTimesDelta += delta[i]*delta[i];
+      delta = log(exp(betaUpdated[i]) / exp(beta[i]));
+      gradientTimesDelta += gradient[i] * delta;
+      deltaTimesDelta += delta * delta;
     }
     memset(probabilities, 0, n * sizeof *probabilities);
     compute_probabilities(x, betaUpdated, groupSizes, &n, &p, &nGroups, probabilities);
     loglikUpdated = compute_loglik(y, probabilities, betaUpdated, lambda, n, p, nGroups);
-    if (loglikUpdated <= loglik + gradientTimesDelta + deltaTimesDelta/(2*stepsize)) {
+    if (loglikUpdated <= loglik + gradientTimesDelta + deltaTimesDelta/(2*(*stepsize))) {
       break;
     }
-    stepsize *= alpha;
+    *stepsize *= alpha;
     ++iter;
   }
-  free(delta);
 }
 
 void solver(const double *restrict x, const int *restrict y, double *restrict res, double *restrict probabilities, double *restrict beta, const double *restrict lam, const int *restrict groupSizes, const int *restrict numRows, const int *restrict numCols, const int *restrict numGroups, const double *restrict alpha, int *restrict converged, int *restrict numIters, const int *restrict maxIters, const double *restrict tol, double *restrict objValue, const int *restrict numCores) {
@@ -204,17 +202,12 @@ void solver(const double *restrict x, const int *restrict y, double *restrict re
   theta = 1.0;
   *converged = 0;
   objValue[iter] = compute_loglik(y, probabilities, beta, lambda, n, p, nGroups);
-  while (iter < maxIter) {
+  while (iter < maxIter - 1) {
     memcpy(gradientOld, gradient, p * sizeof *gradient);
-    memset(gradient, 0, p * sizeof *gradient);
     compute_gradient(x, res, beta, lam, numRows, numCols, numGroups, numCores, gradient);
-    if (check_convergence(gradient, p, tolerance)) {
-      *converged = 1;
-      break;
-    }
     memcpy(intermediateOld, intermediate, p * sizeof *intermediate);
     stepsize = iter > 0 ? compute_stepsize(gradient, gradientOld, beta, betaOld, p) : 1.0;
-    optimize_step(x, y, res, probabilities, groupSizes, n, p, nGroups, beta, intermediate, gradient, stepsize, *alpha, lambda, maxIter);
+    optimize_step(x, y, res, probabilities, groupSizes, n, p, nGroups, beta, intermediate, gradient, &stepsize, *alpha, lambda, maxIter);
     thetaOld = update_theta(beta, intermediate, intermediateOld, p, theta);
     theta = (1+sqrt(1+4*pow(thetaOld, 2))) / 2;
     momentum = (thetaOld-1) / theta;
@@ -223,6 +216,11 @@ void solver(const double *restrict x, const int *restrict y, double *restrict re
     for (i=0; i<p; i++){
       beta[i] = intermediate[i] + momentum*(intermediate[i]-intermediateOld[i]);
     }
+    //check convergence
+    if (check_convergence(beta, betaOld, p, tolerance)) {
+      *converged = 1;
+      break;
+    }
     /* update probabilities and residual */
     memset(probabilities, 0, n * sizeof *probabilities);
     compute_probabilities(x, beta, groupSizes, numRows, numCols, numGroups, probabilities);
@@ -230,8 +228,7 @@ void solver(const double *restrict x, const int *restrict y, double *restrict re
       res[i] = y[i] - probabilities[i];
     }
     ++iter;
-    if(iter < maxIter)
-        objValue[iter] = compute_loglik(y, probabilities, beta, lambda, n, p, nGroups);
+    objValue[iter] = compute_loglik(y, probabilities, beta, lambda, n, p, nGroups);
   }
   *numIters = iter;
   free(betaOld);
