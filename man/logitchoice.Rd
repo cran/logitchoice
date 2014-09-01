@@ -9,7 +9,7 @@
   of standardization.}
 \usage{
 logitchoice(X, Y, grouping, lambda=NULL, nLambda=50, lambdaMinRatio=0.01,
-tol=1e-5, alpha=0.8, maxIter=5000, verbose=FALSE, numCores=1)
+tol=1e-3, alpha=0.8, maxIter=5000, verbose=FALSE, numCores=1)
 }
 
 \arguments{

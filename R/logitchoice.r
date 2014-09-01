@@ -1,10 +1,9 @@
-logitchoice = function(X, Y, grouping, lambda=NULL, nLambda=50, lambdaMinRatio=0.01, tol=1e-5, alpha=0.8, maxIter=5000, verbose=FALSE, numCores=1) {
+logitchoice = function(X, Y, grouping, lambda=NULL, nLambda=50, lambdaMinRatio=0.01, tol=1e-3, alpha=0.8, maxIter=5000, verbose=FALSE, numCores=1) {
     thisCall = match.call()
 
-    grouping = as.factor(grouping)
-    groupSizes = sapply(levels(grouping), function(x) sum(grouping == x))
-    numGroups = length(groupSizes)
-    
+    numGroups = length(unique(grouping))
+    groupSizes = sapply(unique(grouping), function(x) sum(grouping == x))
+   
     #check inputs
     n = length(Y)
     stopifnot(n == sum(groupSizes))
